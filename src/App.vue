@@ -19,9 +19,12 @@ import { MAX_MINUTES, MIN_MINUTES, clampMinutes, formatSeconds } from '@/lib/tim
 const {
   bpm,
   isPlaying,
+  isPaused,
   currentBeat,
   beatsPerBar,
   accentFirstBeat,
+  subdivision,
+  accentOffbeat,
   timerEnabled,
   timerMinutes,
   remaining,
@@ -30,9 +33,24 @@ const {
   rampAmount,
   rampInterval,
   toggle,
+  pause,
+  resume,
 } = useMetronome(120)
 
 const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bpm.value))
+
+const SUBDIVISIONS = [
+  { value: 1, label: '无' },
+  { value: 2, label: '八分（2）' },
+  { value: 3, label: '三连音（3）' },
+  { value: 4, label: '十六分（4）' },
+]
+
+// The first beat is the tallest bar and each following beat steps down evenly to 30%.
+const barHeights = Array.from(
+  { length: beatsPerBar },
+  (_, index) => 100 - (index * 70) / Math.max(1, beatsPerBar - 1),
+)
 </script>
 
 <template>
@@ -41,10 +59,11 @@ const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bp
 
     <div class="bar" aria-hidden="true">
       <span
-        v-for="beat in beatsPerBar"
-        :key="beat"
+        v-for="(height, index) in barHeights"
+        :key="index"
         class="beat"
-        :class="{ active: isPlaying && currentBeat === beat - 1 }"
+        :class="{ active: isPlaying && currentBeat === index }"
+        :style="{ height: `${height}%` }"
       />
     </div>
 
@@ -68,6 +87,21 @@ const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bp
         @change="bpm = clampBpm(($event.target as HTMLInputElement).valueAsNumber)"
       />
     </label>
+
+    <div class="subdivision">
+      <label>
+        <span>切分</span>
+        <select v-model.number="subdivision">
+          <option v-for="option in SUBDIVISIONS" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </label>
+      <label class="accent">
+        <input v-model="accentOffbeat" type="checkbox" :disabled="subdivision === 1" />
+        <span>反拍重音</span>
+      </label>
+    </div>
 
     <label class="accent">
       <input v-model="accentFirstBeat" type="checkbox" />
@@ -126,7 +160,12 @@ const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bp
       </template>
     </div>
 
-    <button type="button" @click="toggle">{{ isPlaying ? '停止' : '开始' }}</button>
+    <div class="actions">
+      <button type="button" @click="toggle">{{ isPlaying ? '停止' : '开始' }}</button>
+      <button v-if="isPlaying" type="button" @click="isPaused ? resume() : pause()">
+        {{ isPaused ? '继续' : '暂停' }}
+      </button>
+    </div>
   </main>
 </template>
 
@@ -142,15 +181,18 @@ const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bp
 
 .bar {
   display: flex;
+  align-items: flex-end;
   gap: 0.5rem;
+  height: 4rem;
 }
 
 .beat {
   width: 1.5rem;
-  height: 4rem;
   border-radius: 0.25rem;
   background: #d4d4d8;
-  transition: background 60ms;
+  transition:
+    background 60ms,
+    height 120ms;
 }
 
 .beat.active {
@@ -161,6 +203,18 @@ const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bp
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.subdivision {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.subdivision label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .accent {
@@ -193,6 +247,11 @@ input[type='number'] {
 
 select {
   padding: 0.25rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
 }
 
 button {

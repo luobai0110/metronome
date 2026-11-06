@@ -5,8 +5,10 @@ import {
   clampBpm,
   clampIncreaseAmount,
   clampIncreaseInterval,
+  clickVoice,
   increaseBpm,
   secondsPerBeat,
+  type ClickVoice,
   type IncreaseMode,
 } from './tempo.ts'
 
@@ -64,6 +66,28 @@ for (const [bpm, mode, amount, expected] of increaseCases) {
   const actual = increaseBpm(bpm, mode, amount)
   if (actual !== expected) {
     throw new Error(`increaseBpm(${bpm}, ${mode}, ${amount}) = ${actual}, want ${expected}`)
+  }
+}
+
+// beatIndex, tick, subdivision, accentFirstBeat, accentOffbeat -> expected voice
+const voiceCases: [number, number, number, boolean, boolean, ClickVoice][] = [
+  [0, 0, 1, true, false, 'accent'],
+  [1, 0, 1, true, false, 'beat'],
+  [0, 0, 1, false, false, 'beat'],
+  [0, 0, 4, true, true, 'accent'],
+  [1, 2, 4, true, true, 'offbeat'],
+  [1, 2, 4, true, false, 'subdivision'],
+  [1, 1, 4, true, true, 'subdivision'],
+  [1, 1, 2, true, true, 'offbeat'],
+  [1, 1, 3, true, true, 'subdivision'],
+]
+
+for (const [beat, tick, sub, accentFirst, accentOff, expected] of voiceCases) {
+  const actual = clickVoice(beat, tick, sub, accentFirst, accentOff)
+  if (actual !== expected) {
+    throw new Error(
+      `clickVoice(${beat}, ${tick}, ${sub}, ${accentFirst}, ${accentOff}) = ${actual}, want ${expected}`,
+    )
   }
 }
 

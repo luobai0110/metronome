@@ -51,3 +51,19 @@ export function increaseBpm(bpm: number, mode: IncreaseMode, amount: number): nu
   const target = mode === 'percent' ? bpm * (1 + amount / 100) : bpm + amount
   return clampBpm(target)
 }
+
+export type ClickVoice = 'accent' | 'beat' | 'offbeat' | 'subdivision'
+
+// Which of the four click sounds a given tick gets.
+// `tick` counts subdivisions inside one beat; offbeat is the later half of a subdivided beat.
+export function clickVoice(
+  beatIndex: number,
+  tick: number,
+  subdivision: number,
+  accentFirstBeat: boolean,
+  accentOffbeat: boolean,
+): ClickVoice {
+  if (tick === 0) return beatIndex === 0 && accentFirstBeat ? 'accent' : 'beat'
+  const isOffbeat = subdivision > 1 && tick * 2 === subdivision
+  return isOffbeat && accentOffbeat ? 'offbeat' : 'subdivision'
+}
