@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useMetronome } from '@/composables/useMetronome'
 import { MAX_BPM, MIN_BPM, clampBpm } from '@/lib/tempo'
+import { MAX_MINUTES, MIN_MINUTES, clampMinutes, formatSeconds } from '@/lib/timer'
 
-const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, toggle } = useMetronome(120)
+const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, timerMinutes, remaining, toggle } =
+  useMetronome(120)
 </script>
 
 <template>
@@ -33,6 +35,20 @@ const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, toggle } = us
     <label class="accent">
       <input v-model="accentFirstBeat" type="checkbox" />
       <span>小节首拍强调音</span>
+    </label>
+
+    <label class="timer">
+      <span>计时</span>
+      <input
+        v-model.number="timerMinutes"
+        type="number"
+        :min="MIN_MINUTES"
+        :max="MAX_MINUTES"
+        step="1"
+        @change="timerMinutes = clampMinutes(timerMinutes)"
+      />
+      <span>分钟</span>
+      <output class="remaining">{{ formatSeconds(remaining) }}</output>
     </label>
 
     <button type="button" @click="toggle">{{ isPlaying ? '停止' : '开始' }}</button>
@@ -76,6 +92,18 @@ const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, toggle } = us
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.remaining {
+  min-width: 3.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 input[type='number'] {
