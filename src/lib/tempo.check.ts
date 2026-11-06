@@ -1,6 +1,8 @@
 // Self-check for tempo math: `pnpm check`
 import {
+  DEFAULT_BEATS_PER_BAR,
   MAX_BPM,
+  METER_PRESETS,
   MIN_BPM,
   clampBpm,
   clampIncreaseAmount,
@@ -88,6 +90,20 @@ for (const [beat, tick, sub, accentFirst, accentOff, expected] of voiceCases) {
     throw new Error(
       `clickVoice(${beat}, ${tick}, ${sub}, ${accentFirst}, ${accentOff}) = ${actual}, want ${expected}`,
     )
+  }
+}
+
+// The default meter must be selectable, or the UI cannot show which button is active.
+if (!METER_PRESETS.some((meter) => meter.beats === DEFAULT_BEATS_PER_BAR)) {
+  throw new Error(`no METER_PRESETS entry with ${DEFAULT_BEATS_PER_BAR} beats`)
+}
+
+for (const meter of METER_PRESETS) {
+  if (!Number.isInteger(meter.beats) || meter.beats < 2) {
+    throw new Error(`METER_PRESETS entry ${meter.label} has invalid beats: ${meter.beats}`)
+  }
+  if (!/^\d+\/\d+$/.test(meter.label)) {
+    throw new Error(`METER_PRESETS entry ${meter.label} is not an x/y label`)
   }
 }
 

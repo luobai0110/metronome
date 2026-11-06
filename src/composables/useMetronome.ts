@@ -1,5 +1,6 @@
 import { onUnmounted, ref, watch } from 'vue'
 import {
+  DEFAULT_BEATS_PER_BAR,
   clampBpm,
   clampIncreaseAmount,
   clampIncreaseInterval,
@@ -14,7 +15,6 @@ import { remainingSeconds } from '@/lib/timer'
 // so playback is not affected by JS timer jitter.
 const LOOKAHEAD_MS = 25
 const SCHEDULE_AHEAD_S = 0.1
-const DEFAULT_BEATS_PER_BAR = 4
 const DEFAULT_TIMER_MINUTES = 5
 const DEFAULT_RAMP_AMOUNT = 10
 const DEFAULT_RAMP_INTERVAL_MINUTES = 1
@@ -27,11 +27,12 @@ const CLICK = {
   subdivision: { freq: 800, gain: 0.25 },
 } as const
 
-export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_BAR) {
+export function useMetronome(initialBpm = 120, initialBeatsPerBar = DEFAULT_BEATS_PER_BAR) {
   const bpm = ref(clampBpm(initialBpm))
   const isPlaying = ref(false)
   const isPaused = ref(false)
   const currentBeat = ref(0) // 0-based position inside the bar
+  const beatsPerBar = ref(initialBeatsPerBar)
   const accentFirstBeat = ref(true)
   const subdivision = ref(1) // ticks per beat: 1 = none, 2 = eighths, 3 = triplets, 4 = sixteenths
   const accentOffbeat = ref(false)
@@ -99,7 +100,7 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
       nextBeatAt - audio.currentTime < left
     ) {
       const at = nextBeatAt
-      const index = beatCount % beatsPerBar
+      const index = beatCount % beatsPerBar.value
       const tick = tickCount % subdivision.value
       const isDownbeat = tick === 0
       const voice = clickVoice(
@@ -216,6 +217,11 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
   // While idle the countdown mirrors the chosen length, so the display is never stale.
   watch(timerMinutes, (minutes) => {
     if (!isPlaying.value) remaining.value = minutes * 60
+  })
+
+  // Switching to a shorter meter mid-bar can leave the indicator past the new last beat.
+  watch(beatsPerBar, (beats) => {
+    if (currentBeat.value >= beats) currentBeat.value = 0
   })
 
   return {

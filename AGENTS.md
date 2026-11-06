@@ -18,10 +18,12 @@
 src/
   main.ts                 # createApp 挂载入口
   App.vue                 # 页面根组件
+  components/             # 纯展示组件
+    SubdivisionIcon.vue   # 切分音类型的乐谱图标（1/2/3/4 份）
   composables/            # 组合式函数（状态 + 副作用）
     useMetronome.ts       # 节拍器：音频调度、播放状态、练习倒计时
   lib/                    # 与 Vue 无关的纯函数
-    tempo.ts              # BPM 范围、clampBpm、secondsPerBeat、TEMPO_PRESETS、自动增速、clickVoice
+    tempo.ts              # BPM 范围、clampBpm、secondsPerBeat、TEMPO_PRESETS、METER_PRESETS、自动增速、clickVoice
     timer.ts              # 分钟范围、clampMinutes、remainingSeconds、formatSeconds
     *.check.ts            # 对应的断言自检，由 pnpm check 执行
 ```
@@ -58,7 +60,7 @@ pnpm format       # prettier 格式化 src/
 
 - BPM 范围 `MIN_BPM=20` ~ `MAX_BPM=300`，一律经 `clampBpm()` 归一化。
 - 常用速度预设放在 `tempo.ts` 的 `TEMPO_PRESETS`（40/60/66/80/100/120/152/176，附意大利语术语）。下拉框与滑块、数字框共用同一个 `bpm` ref，三者始终同步；当前值不在预设里时，下拉框会多出一个 disabled 的“自定义 N”选项来保持显示。
-- 拍号默认 4/4，由 `useMetronome(bpm, beatsPerBar=4)` 决定拍数；`currentBeat` 是 0-based 的小节内位置，UI 负责 +1 渲染。
+- 拍号由 `useMetronome(bpm, beatsPerBar=4)` 的第二个参数给初值，导出成 `beatsPerBar` ref 供界面切换；可选值在 `tempo.ts` 的 `METER_PRESETS`（2/4、3/4、4/4、6/8，附中文术语）。切换拍号不清空播放状态，小节位置在下一拍按新拍数取模；若当前拍号小于当前 `currentBeat`，watch 会把柱子归位到 0，避免高亮跳到不存在的拍。`currentBeat` 是 0-based 的小节内位置，UI 负责 +1 渲染。
 - 首拍强调是开关 `accentFirstBeat`（默认开），首拍 1600Hz/0.8、其余 1000Hz/0.5；开关只在调度下一拍时读取，播放中切换从下一拍或下一小节生效。
 - 自动增速是可选功能：`rampEnabled` 默认关，`rampMode` 为 `fixed`（每步加固定 BPM）或 `percent`（每步按当前 BPM 百分比放大），`rampAmount` 默认 10、`rampInterval` 默认 1 分钟，结果一律经 `increaseBpm()` 再 `clampBpm()` 兜到 20–300。增速逻辑写在 `schedule()` 里读 `AudioContext.currentTime`，不用 `setInterval`，后台标签页被节流时不会拖慢进度；用 `Math.floor(已播放时间 / 步长)` 和 `rampStepsDone` 比对来补步，掉帧时不会漏步或重复加速。
 - 练习倒计时是可选功能：`timerEnabled`（默认 `false`）关闭时无限播放，UI 只显示“定时停止”复选框；开启后才出现分钟数与剩余时间。`timerMinutes`（1–120，默认 5）决定时长，`remaining` 是剩余秒数，归零自动 `stop()`。关闭时 `timerStopAt = Infinity`，调度循环的边界条件自然失效，无需分支。倒计时读的是 `AudioContext.currentTime`，与节拍同源；调度循环另用 `nextBeatAt < timerStopAt` 兜底，避免倒计时归零后还有已排程的击打声。
@@ -71,3 +73,4 @@ pnpm format       # prettier 格式化 src/
 ## 无障碍与交互
 
 - 控件用原生语义元素（`button`、`input[type=range]`、`input[type=number]`、`select`），保留键盘操作。
+- 切分音类型是图标单选组：原生 `input[type=radio]` 藏起来、用 `:has(input:checked)` 给卡片上色，图标由 `components/SubdivisionIcon.vue` 按 `value` 画出 ♩ ♫ ♪³ ♬。文字标签放在 `.visually-hidden` 里并作为 `title`，所以键盘、读屏和鼠标悬停都还有可读名称。

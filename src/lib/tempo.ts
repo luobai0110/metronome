@@ -21,6 +21,15 @@ export function secondsPerBeat(bpm: number): number {
   return 60 / clampBpm(bpm)
 }
 
+// Meters offered as buttons; `beats` is how many clicks one bar holds.
+export const METER_PRESETS = [
+  { beats: 2, label: '2/4', name: '二拍子' },
+  { beats: 3, label: '3/4', name: '三拍子' },
+  { beats: 4, label: '4/4', name: '四拍子' },
+  { beats: 6, label: '6/8', name: '六拍子' },
+] as const
+export const DEFAULT_BEATS_PER_BAR = 4
+
 // Auto-acceleration: `fixed` adds the same number of BPM each step, `percent` scales the current BPM.
 export const INCREASE_MODES = [
   { value: 'fixed', label: '固定 BPM' },
