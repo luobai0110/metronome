@@ -1,10 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useMetronome } from '@/composables/useMetronome'
-import { MAX_BPM, MIN_BPM, clampBpm } from '@/lib/tempo'
+import { MAX_BPM, MIN_BPM, TEMPO_PRESETS, clampBpm } from '@/lib/tempo'
 import { MAX_MINUTES, MIN_MINUTES, clampMinutes, formatSeconds } from '@/lib/timer'
 
-const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, timerMinutes, remaining, toggle } =
-  useMetronome(120)
+const {
+  bpm,
+  isPlaying,
+  currentBeat,
+  beatsPerBar,
+  accentFirstBeat,
+  timerEnabled,
+  timerMinutes,
+  remaining,
+  toggle,
+} = useMetronome(120)
+
+const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bpm.value))
 </script>
 
 <template>
@@ -22,6 +34,15 @@ const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, timerMinutes,
 
     <label class="bpm">
       <span>BPM</span>
+      <select
+        :value="bpm"
+        @change="bpm = clampBpm(Number(($event.target as HTMLSelectElement).value))"
+      >
+        <option v-if="!isPreset" :value="bpm" disabled>自定义 {{ bpm }}</option>
+        <option v-for="preset in TEMPO_PRESETS" :key="preset.bpm" :value="preset.bpm">
+          {{ preset.bpm }} · {{ preset.name }}
+        </option>
+      </select>
       <input v-model.number="bpm" type="range" :min="MIN_BPM" :max="MAX_BPM" step="1" />
       <input
         :value="bpm"
@@ -37,19 +58,24 @@ const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, timerMinutes,
       <span>小节首拍强调音</span>
     </label>
 
-    <label class="timer">
-      <span>计时</span>
-      <input
-        v-model.number="timerMinutes"
-        type="number"
-        :min="MIN_MINUTES"
-        :max="MAX_MINUTES"
-        step="1"
-        @change="timerMinutes = clampMinutes(timerMinutes)"
-      />
-      <span>分钟</span>
-      <output class="remaining">{{ formatSeconds(remaining) }}</output>
-    </label>
+    <div class="timer">
+      <label>
+        <input v-model="timerEnabled" type="checkbox" />
+        <span>定时停止</span>
+      </label>
+      <template v-if="timerEnabled">
+        <input
+          v-model.number="timerMinutes"
+          type="number"
+          :min="MIN_MINUTES"
+          :max="MAX_MINUTES"
+          step="1"
+          @change="timerMinutes = clampMinutes(timerMinutes)"
+        />
+        <span>分钟</span>
+        <output class="remaining">{{ formatSeconds(remaining) }}</output>
+      </template>
+    </div>
 
     <button type="button" @click="toggle">{{ isPlaying ? '停止' : '开始' }}</button>
   </main>
@@ -108,6 +134,10 @@ const { bpm, isPlaying, currentBeat, beatsPerBar, accentFirstBeat, timerMinutes,
 
 input[type='number'] {
   width: 4.5rem;
+}
+
+select {
+  padding: 0.25rem;
 }
 
 button {

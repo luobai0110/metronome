@@ -14,6 +14,7 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
   const isPlaying = ref(false)
   const currentBeat = ref(0) // 0-based position inside the bar
   const accentFirstBeat = ref(true)
+  const timerEnabled = ref(false)
   const timerMinutes = ref(DEFAULT_TIMER_MINUTES)
   const remaining = ref(DEFAULT_TIMER_MINUTES * 60)
 
@@ -68,16 +69,18 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
     currentBeat.value = 0
     const startedAt = audio.currentTime
     nextBeatAt = startedAt
-    timerStopAt = startedAt + timerMinutes.value * 60
+    timerStopAt = timerEnabled.value ? startedAt + timerMinutes.value * 60 : Infinity
     remaining.value = remainingSeconds(timerMinutes.value * 60, 0)
     isPlaying.value = true
     timer = window.setInterval(schedule, LOOKAHEAD_MS)
-    // The countdown reads the audio clock, so it stays in step with the beats it stops.
-    countdown = window.setInterval(() => {
-      const left = remainingSeconds(timerStopAt - startedAt, audio.currentTime - startedAt)
-      remaining.value = left
-      if (left === 0) stop()
-    }, 200)
+    if (timerEnabled.value) {
+      // The countdown reads the audio clock, so it stays in step with the beats it stops.
+      countdown = window.setInterval(() => {
+        const left = remainingSeconds(timerStopAt - startedAt, audio.currentTime - startedAt)
+        remaining.value = left
+        if (left === 0) stop()
+      }, 200)
+    }
     schedule()
   }
 
@@ -105,6 +108,7 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
     currentBeat,
     beatsPerBar,
     accentFirstBeat,
+    timerEnabled,
     timerMinutes,
     remaining,
     start,
