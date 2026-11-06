@@ -20,3 +20,34 @@ export function clampBpm(bpm: number): number {
 export function secondsPerBeat(bpm: number): number {
   return 60 / clampBpm(bpm)
 }
+
+// Auto-acceleration: `fixed` adds the same number of BPM each step, `percent` scales the current BPM.
+export const INCREASE_MODES = [
+  { value: 'fixed', label: '固定 BPM' },
+  { value: 'percent', label: '百分比' },
+] as const
+export type IncreaseMode = (typeof INCREASE_MODES)[number]['value']
+
+export const MIN_INCREASE_INTERVAL = 1
+export const MAX_INCREASE_INTERVAL = 60
+export const MIN_INCREASE_AMOUNT = 1
+export const MAX_INCREASE_AMOUNT = 100
+
+export function clampIncreaseInterval(minutes: number): number {
+  return Math.min(
+    MAX_INCREASE_INTERVAL,
+    Math.max(MIN_INCREASE_INTERVAL, Math.round(minutes) || MIN_INCREASE_INTERVAL),
+  )
+}
+
+export function clampIncreaseAmount(amount: number): number {
+  return Math.min(
+    MAX_INCREASE_AMOUNT,
+    Math.max(MIN_INCREASE_AMOUNT, Math.round(amount) || MIN_INCREASE_AMOUNT),
+  )
+}
+
+export function increaseBpm(bpm: number, mode: IncreaseMode, amount: number): number {
+  const target = mode === 'percent' ? bpm * (1 + amount / 100) : bpm + amount
+  return clampBpm(target)
+}

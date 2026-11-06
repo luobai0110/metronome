@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useMetronome } from '@/composables/useMetronome'
-import { MAX_BPM, MIN_BPM, TEMPO_PRESETS, clampBpm } from '@/lib/tempo'
+import {
+  INCREASE_MODES,
+  MAX_BPM,
+  MAX_INCREASE_AMOUNT,
+  MAX_INCREASE_INTERVAL,
+  MIN_BPM,
+  MIN_INCREASE_AMOUNT,
+  MIN_INCREASE_INTERVAL,
+  TEMPO_PRESETS,
+  clampBpm,
+  clampIncreaseAmount,
+  clampIncreaseInterval,
+} from '@/lib/tempo'
 import { MAX_MINUTES, MIN_MINUTES, clampMinutes, formatSeconds } from '@/lib/timer'
 
 const {
@@ -13,6 +25,10 @@ const {
   timerEnabled,
   timerMinutes,
   remaining,
+  rampEnabled,
+  rampMode,
+  rampAmount,
+  rampInterval,
   toggle,
 } = useMetronome(120)
 
@@ -77,6 +93,39 @@ const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bp
       </template>
     </div>
 
+    <div class="ramp">
+      <label>
+        <input v-model="rampEnabled" type="checkbox" />
+        <span>自动增速</span>
+      </label>
+      <template v-if="rampEnabled">
+        <span>每</span>
+        <input
+          v-model.number="rampInterval"
+          type="number"
+          :min="MIN_INCREASE_INTERVAL"
+          :max="MAX_INCREASE_INTERVAL"
+          step="1"
+          @change="rampInterval = clampIncreaseInterval(rampInterval)"
+        />
+        <span>分钟</span>
+        <select v-model="rampMode">
+          <option v-for="mode in INCREASE_MODES" :key="mode.value" :value="mode.value">
+            {{ mode.label }}
+          </option>
+        </select>
+        <input
+          v-model.number="rampAmount"
+          type="number"
+          :min="MIN_INCREASE_AMOUNT"
+          :max="MAX_INCREASE_AMOUNT"
+          step="1"
+          @change="rampAmount = clampIncreaseAmount(rampAmount)"
+        />
+        <span>{{ rampMode === 'percent' ? '%' : 'BPM' }}</span>
+      </template>
+    </div>
+
     <button type="button" @click="toggle">{{ isPlaying ? '停止' : '开始' }}</button>
   </main>
 </template>
@@ -121,6 +170,12 @@ const isPreset = computed(() => TEMPO_PRESETS.some((preset) => preset.bpm === bp
 }
 
 .timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ramp {
   display: flex;
   align-items: center;
   gap: 0.5rem;

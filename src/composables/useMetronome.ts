@@ -1,5 +1,12 @@
 import { onUnmounted, ref, watch } from 'vue'
-import { clampBpm, secondsPerBeat } from '@/lib/tempo'
+import {
+  clampBpm,
+  clampIncreaseAmount,
+  clampIncreaseInterval,
+  increaseBpm,
+  secondsPerBeat,
+  type IncreaseMode,
+} from '@/lib/tempo'
 import { remainingSeconds } from '@/lib/timer'
 
 // setInterval only wakes the scheduler; beats themselves are scheduled ahead on the audio clock,
@@ -8,6 +15,8 @@ const LOOKAHEAD_MS = 25
 const SCHEDULE_AHEAD_S = 0.1
 const DEFAULT_BEATS_PER_BAR = 4
 const DEFAULT_TIMER_MINUTES = 5
+const DEFAULT_RAMP_AMOUNT = 10
+const DEFAULT_RAMP_INTERVAL_MINUTES = 1
 
 export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_BAR) {
   const bpm = ref(clampBpm(initialBpm))
@@ -17,6 +26,10 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
   const timerEnabled = ref(false)
   const timerMinutes = ref(DEFAULT_TIMER_MINUTES)
   const remaining = ref(DEFAULT_TIMER_MINUTES * 60)
+  const rampEnabled = ref(false)
+  const rampMode = ref<IncreaseMode>('fixed')
+  const rampAmount = ref(DEFAULT_RAMP_AMOUNT) // BPM for 'fixed', percent for 'percent'
+  const rampInterval = ref(DEFAULT_RAMP_INTERVAL_MINUTES)
 
   let ctx: AudioContext | undefined
   let timer: number | undefined
@@ -24,6 +37,8 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
   let beatCount = 0
   let timerStopAt = 0
   let countdown: number | undefined
+  let rampApplyAt = 0
+  let rampStepSeconds = 0
   const pendingVisuals = new Set<number>()
 
   function playClick(time: number, accent: boolean) {
@@ -41,6 +56,11 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
   function schedule() {
     const audio = ctx
     if (!audio) return
+    // The ramp rides the audio clock so a throttled tab cannot stretch the interval.
+    while (rampEnabled.value && audio.currentTime >= rampApplyAt) {
+      bpm.value = increaseBpm(bpm.value, rampMode.value, clampIncreaseAmount(rampAmount.value))
+      rampApplyAt += rampStepSeconds
+    }
     // Stop scheduling at the timer's end so no click sounds after the countdown hits zero.
     while (nextBeatAt < audio.currentTime + SCHEDULE_AHEAD_S && nextBeatAt < timerStopAt) {
       const at = nextBeatAt
@@ -81,6 +101,8 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
         if (left === 0) stop()
       }, 200)
     }
+    rampStepSeconds = clampIncreaseInterval(rampInterval.value) * 60
+    rampApplyAt = startedAt + rampStepSeconds
     schedule()
   }
 
@@ -111,6 +133,10 @@ export function useMetronome(initialBpm = 120, beatsPerBar = DEFAULT_BEATS_PER_B
     timerEnabled,
     timerMinutes,
     remaining,
+    rampEnabled,
+    rampMode,
+    rampAmount,
+    rampInterval,
     start,
     stop,
     toggle: () => (isPlaying.value ? stop() : start()),

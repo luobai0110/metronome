@@ -21,7 +21,7 @@ src/
   composables/            # 组合式函数（状态 + 副作用）
     useMetronome.ts       # 节拍器：音频调度、播放状态、练习倒计时
   lib/                    # 与 Vue 无关的纯函数
-    tempo.ts              # BPM 范围、clampBpm、secondsPerBeat、TEMPO_PRESETS
+    tempo.ts              # BPM 范围、clampBpm、secondsPerBeat、TEMPO_PRESETS、自动增速
     timer.ts              # 分钟范围、clampMinutes、remainingSeconds、formatSeconds
     *.check.ts            # 对应的断言自检，由 pnpm check 执行
 ```
@@ -60,6 +60,7 @@ pnpm format       # prettier 格式化 src/
 - 常用速度预设放在 `tempo.ts` 的 `TEMPO_PRESETS`（40/60/66/80/100/120/152/176，附意大利语术语）。下拉框与滑块、数字框共用同一个 `bpm` ref，三者始终同步；当前值不在预设里时，下拉框会多出一个 disabled 的“自定义 N”选项来保持显示。
 - 拍号默认 4/4，由 `useMetronome(bpm, beatsPerBar=4)` 决定拍数；`currentBeat` 是 0-based 的小节内位置，UI 负责 +1 渲染。
 - 首拍强调是开关 `accentFirstBeat`（默认开），首拍 1600Hz/0.8、其余 1000Hz/0.5；开关只在调度下一拍时读取，播放中切换从下一拍或下一小节生效。
+- 自动增速是可选功能：`rampEnabled` 默认关，`rampMode` 为 `fixed`（每步加固定 BPM）或 `percent`（每步按当前 BPM 百分比放大），`rampAmount` 默认 10、`rampInterval` 默认 1 分钟，结果一律经 `increaseBpm()` 再 `clampBpm()` 兜到 20–300。增速逻辑写在 `schedule()` 里读 `AudioContext.currentTime`，不用 `setInterval`，后台标签页被节流时不会拖慢进度；`rampApplyAt` 按步长整除推进，避免掉帧时漏步或重复加速。
 - 练习倒计时是可选功能：`timerEnabled`（默认 `false`）关闭时无限播放，UI 只显示“定时停止”复选框；开启后才出现分钟数与剩余时间。`timerMinutes`（1–120，默认 5）决定时长，`remaining` 是剩余秒数，归零自动 `stop()`。关闭时 `timerStopAt = Infinity`，调度循环的边界条件自然失效，无需分支。倒计时读的是 `AudioContext.currentTime`，与节拍同源；调度循环另用 `nextBeatAt < timerStopAt` 兜底，避免倒计时归零后还有已排程的击打声。
 - 视觉指示同样跟音频时钟：排程时用 `setTimeout(at - currentTime)` 反推渲染时刻，不用 `setInterval` 猜测；停止时要清理这些待触发的 timer。
 - 改 BPM 时不要重建 `AudioContext`；仅在组件卸载时关闭。
