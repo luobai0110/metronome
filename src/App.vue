@@ -15,6 +15,7 @@ import {
   clampBpm,
   clampIncreaseAmount,
   clampIncreaseInterval,
+  secondsPerBeat,
 } from '@/lib/tempo'
 import { MAX_MINUTES, MIN_MINUTES, clampMinutes, formatSeconds } from '@/lib/timer'
 
@@ -60,6 +61,9 @@ const barHeights = computed(() =>
 const meterLabel = computed(
   () => METER_PRESETS.find((meter) => meter.beats === beatsPerBar.value)?.label ?? '4/4',
 )
+
+// The fade-out must end before the next beat, or highlights smear together at fast tempos.
+const fadeMs = computed(() => Math.round(Math.min(180, secondsPerBeat(bpm.value) * 1000 * 0.55)))
 </script>
 
 <template>
@@ -71,7 +75,7 @@ const meterLabel = computed(
 
     <div class="layout">
       <section class="stage">
-        <div class="bar" aria-hidden="true">
+        <div class="bar" aria-hidden="true" :style="{ '--fade': `${fadeMs}ms` }">
           <span
             v-for="(height, index) in barHeights"
             :key="index"
@@ -331,17 +335,29 @@ const meterLabel = computed(
 }
 
 .beat {
+  position: relative;
   width: 2rem;
   border-radius: 0.5rem 0.5rem 0.25rem 0.25rem;
   background: #e4e4e7;
-  transition:
-    background 80ms linear,
-    box-shadow 120ms linear;
+  transition: height 200ms ease-out;
 }
 
-.beat.active {
-  background: linear-gradient(180deg, #6366f1, #4f46e5);
-  box-shadow: 0 6px 16px -6px #4f46e5;
+/* A gradient cannot be transitioned, so the highlight is a layer that fades instead. */
+.beat::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #818cf8, #4f46e5);
+  box-shadow: 0 6px 16px -6px #6366f1;
+  opacity: 0;
+  transition: opacity var(--fade, 180ms) ease-out;
+  content: '';
+}
+
+/* Fast attack, slower release: the onset still reads on the beat, the tail does not pop out. */
+.beat.active::after {
+  opacity: 1;
+  transition-duration: 45ms;
 }
 
 .tempo {
